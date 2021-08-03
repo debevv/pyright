@@ -151,6 +151,67 @@ export class PyrightFileSystem implements FileSystem {
         return this._realFS.readFileText(this._getPartialStubOriginalPath(path), encoding);
     }
 
+    async exists(path: string) {
+        if (this._isVirtualEntry(path)) {
+            // Pretend partial stub folder and its files not exist
+            return false;
+        }
+
+        return this._realFS.exists(this._getPartialStubOriginalPath(path));
+    }
+
+    mkdir(path: string, options?: MkDirOptions) {
+        return this._realFS.mkdir(path, options);
+    }
+
+    async readdirEntries(path: string) {
+        const entries = (await this._realFS.readdirEntries(path)).filter((item) => {
+            // Filter out the stub package directory.
+            return !this._isVirtualEntry(combinePaths(path, item.name));
+        });
+
+        const partialStubs = this._folderMap.get(ensureTrailingDirectorySeparator(path));
+        if (!partialStubs) {
+            return entries;
+        }
+
+        return entries.concat(partialStubs.map((f) => new VirtualDirent(f, /* file */ true)));
+    }
+
+    async readdir(path: string) {
+        const entries = (await this._realFS.readdir(path)).filter((item) => {
+            // Filter out the stub package directory.
+            return !this._isVirtualEntry(combinePaths(path, item));
+        });
+
+        const partialStubs = this._folderMap.get(ensureTrailingDirectorySeparator(path));
+        if (!partialStubs) {
+            return entries;
+        }
+
+        return entries.concat(partialStubs);
+    }
+
+    writeFile(path: string, data: string | Buffer, encoding: BufferEncoding | null) {
+        return this._realFS.writeFile(this._getPartialStubOriginalPath(path), data, encoding);
+    }
+
+    async stat(path: string) {
+        return this._realFS.stat(this._getPartialStubOriginalPath(path));
+    }
+
+    unlink(path: string) {
+        return this._realFS.unlink(this._getPartialStubOriginalPath(path));
+    }
+
+    realpath(path: string) {
+        return this._realFS.realpath(path);
+    }
+
+    copyFile(src: string, dst: string) {
+        return this._realFS.copyFile(this._getPartialStubOriginalPath(src), this._getPartialStubOriginalPath(dst));
+    }
+
     // The directory returned by tmpdir must exist and be the same each time tmpdir is called.
     tmpdir(): string {
         return this._realFS.tmpdir();

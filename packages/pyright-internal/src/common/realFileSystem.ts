@@ -359,6 +359,77 @@ class RealFileSystem implements FileSystem {
     getUri(path: string): string {
         return URI.file(path).toString();
     }
+
+    async exists(path: string) {
+        try {
+            // Catch zip open errors. existsSync is assumed to never throw by callers.
+            return yarnFS.existsPromise(path);
+        } catch {
+            return false;
+        }
+    }
+
+    mkdir(path: string, options?: MkDirOptions) {
+        return yarnFS.mkdirPromise(path, options);
+    }
+
+    async readdirEntries(path: string) {
+        return (await yarnFS.readdirPromise(path, { withFileTypes: true })).map((entry): fs.Dirent => {
+            // Treat zip/egg files as directories.
+            // See: https://github.com/yarnpkg/berry/blob/master/packages/vscode-zipfs/sources/ZipFSProvider.ts
+            if (hasZipOrEggExtension(entry.name)) {
+                if (entry.isFile() && yarnFS.isZip(path)) {
+                    return {
+                        name: entry.name,
+                        isFile: () => false,
+                        isDirectory: () => true,
+                        isBlockDevice: () => false,
+                        isCharacterDevice: () => false,
+                        isSymbolicLink: () => false,
+                        isFIFO: () => false,
+                        isSocket: () => false,
+                    };
+                }
+            }
+            return entry;
+        });
+    }
+
+    readdir(path: string) {
+        return yarnFS.readdirPromise(path);
+    }
+
+    writeFile(path: string, data: string | Buffer, encoding: BufferEncoding | null) {
+        return yarnFS.writeFilePromise(path, data, encoding || undefined);
+    }
+
+    async stat(path: string) {
+        const stat = await yarnFS.statPromise(path);
+        // Treat zip/egg files as directories.
+        // See: https://github.com/yarnpkg/berry/blob/master/packages/vscode-zipfs/sources/ZipFSProvider.ts
+        if (hasZipOrEggExtension(path)) {
+            if (stat.isFile() && yarnFS.isZip(path)) {
+                return {
+                    ...stat,
+                    isFile: () => false,
+                    isDirectory: () => true,
+                };
+            }
+        }
+        return stat;
+    }
+
+    unlink(path: string) {
+        return yarnFS.unlinkPromise(path);
+    }
+
+    realpath(path: string) {
+        return yarnFS.realpathPromise(path);
+    }
+
+    copyFile(src: string, dst: string) {
+        return yarnFS.copyFilePromise(src, dst);
+    }
 }
 
 interface WorkspaceFileWatcher extends FileWatcher {

@@ -65,8 +65,17 @@ export interface FileSystem {
     createWriteStream(path: string): fs.WriteStream;
     copyFileSync(src: string, dst: string): void;
     // Async I/O
+    exists(path: string): Promise<boolean>;
+    mkdir(path: string, options?: MkDirOptions): Promise<void>;
+    readdirEntries(path: string): Promise<fs.Dirent[]>;
+    readdir(path: string): Promise<string[]>;
     readFile(path: string): Promise<Buffer>;
     readFileText(path: string, encoding?: BufferEncoding): Promise<string>;
+    writeFile(path: string, data: string | Buffer, encoding: BufferEncoding | null): Promise<void>;
+    stat(path: string): Promise<Stats>;
+    unlink(path: string): Promise<void>;
+    realpath(path: string): Promise<string>;
+    copyFile(src: string, dst: string): Promise<void>;
     // The directory returned by tmpdir must exist and be the same each time tmpdir is called.
     tmpdir(): string;
     tmpfile(options?: TmpfileOptions): string;
